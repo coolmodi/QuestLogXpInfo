@@ -1,0 +1,9 @@
+## Interface: 11302
+## Title: QuestLogXpInfo
+## Author: coolmodi
+## Notes: Shows experience reward for quests in quest log.
+## Notes-deDE: Zeigt Erfahrung für Quests im Questlog.
+## Version: 1.0
+
+data.lua
+main.lua
