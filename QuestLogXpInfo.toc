@@ -4,6 +4,7 @@
 ## Notes: Shows experience reward for quests in quest log.
 ## Notes-deDE: Zeigt Erfahrung für Quests im Questlog.
 ## Version: 1.0
+## OptionalDeps: QuestLog Extended
 
 data.lua
 main.lua

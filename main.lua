@@ -1,91 +1,120 @@
 local _, _addon = ...
 
-local xpText = QuestLogDetailScrollChildFrame:CreateFontString("QXPIText", "BACKGROUND", "QuestFont")
-xpText:SetTextColor(0.15,0.15,0.15,1)
-xpText:SetFont("Fonts\\FRIZQT__.TTF", 11)
+local xpText;
+local questLogPfx;
 
 --- Append xp display after money reward if it's there
 -- @return true if successful, false if not
 local function AddAfterMoney()
-	if not QuestLogMoneyFrame:IsShown() then 
+	local moneyFrame = _G[questLogPfx.."MoneyFrame"];
+
+	if not moneyFrame:IsShown() then
 		return false;
 	end
-	xpText:SetPoint("LEFT", QuestLogMoneyFrame, "RIGHT", 5, 0);
+
+	xpText:SetPoint("LEFT", moneyFrame, "RIGHT", 0, 0);
 	return true;
 end
 
 --- Append directly behind recieve text if it's there
 -- @return true if successful, false if not
 local function AddAfterRecText()
-	if not QuestLogItemReceiveText:IsShown() then 
+	local recFrame = _G[questLogPfx.."ItemReceiveText"];
+
+	if not recFrame:IsShown() then
 		return false;
 	end
-	xpText:SetPoint("LEFT", QuestLogItemReceiveText, "RIGHT", 5, 0);
+
+	xpText:SetPoint("LEFT", recFrame, "RIGHT", 5, 0);
 	return true;
 end
 
 --- If choice or spell exists append recieve text after it and append xp text
 -- @return true if successful, false if not
 local function AddAfterSpellOrChoice()
-	if not QuestLogItemChooseText:IsShown() and not QuestLogSpellLearnText:IsShown() then 
+	if not _G[questLogPfx.."ItemChooseText"]:IsShown() and not _G[questLogPfx.."SpellLearnText"]:IsShown() then 
 		return false;
 	end
 	
+	local recFrame = _G[questLogPfx.."ItemReceiveText"];
 	local numQuestChoices = GetNumQuestLogChoices();
 	if ( GetNumQuestLogRewardSpells() > 0  ) then
-		QuestLogItemReceiveText:SetText(REWARD_ITEMS);
-		QuestLogItemReceiveText:SetPoint("TOPLEFT", "QuestLogItem"..(numQuestChoices+1), "BOTTOMLEFT", 3, -5);
+		recFrame:SetText(REWARD_ITEMS);
+		recFrame:SetPoint("TOPLEFT", questLogPfx.."Item"..(numQuestChoices+1), "BOTTOMLEFT", 3, -5);
 	else
-		QuestLogItemReceiveText:SetText(REWARD_ITEMS);
+		recFrame:SetText(REWARD_ITEMS);
 		if ( mod(numQuestChoices, 2) == 0 ) then
 			numQuestChoices = numQuestChoices - 1;
 		end
-		QuestLogItemReceiveText:SetPoint("TOPLEFT", "QuestLogItem"..numQuestChoices, "BOTTOMLEFT", 3, -5);
+		recFrame:SetPoint("TOPLEFT", questLogPfx.."Item"..numQuestChoices, "BOTTOMLEFT", 3, -5);
 	end
 	
-	QuestLogItemReceiveText:Show();
-	QuestFrame_SetAsLastShown(QuestLogItemReceiveText, QuestLogSpacerFrame);
-	xpText:SetPoint("LEFT", QuestLogItemReceiveText, "RIGHT", 5, 0);
+	recFrame:Show();
+	QuestFrame_SetAsLastShown(recFrame, _G[questLogPfx.."SpacerFrame"]);
+	xpText:SetPoint("LEFT", recFrame, "RIGHT", 5, 0);
 	return true;
 end
 
 --- Add reward section with xp text if there isn't a reward at all
 -- @return true if successful, false if not
 local function AddRewardSection()
-	if QuestLogRewardTitleText:IsShown() then 
+	local titleText = _G[questLogPfx.."RewardTitleText"];
+
+	if titleText:IsShown() then 
 		return false;
 	end
-	QuestLogRewardTitleText:Show();
-	QuestFrame_SetTitleTextColor(QuestLogRewardTitleText, QuestFrame_GetMaterial());
-	QuestLogItemReceiveText:SetText(REWARD_ITEMS_ONLY);
-	QuestLogItemReceiveText:SetPoint("TOPLEFT", "QuestLogRewardTitleText", "BOTTOMLEFT", 3, -5);
-	QuestLogItemReceiveText:Show();
-	QuestFrame_SetAsLastShown(QuestLogItemReceiveText, QuestLogSpacerFrame);
-	xpText:SetPoint("LEFT", QuestLogItemReceiveText, "RIGHT", 5, 0);
+	titleText:Show();
+	QuestFrame_SetTitleTextColor(titleText, QuestFrame_GetMaterial());
+
+	local recFrame = _G[questLogPfx.."ItemReceiveText"];
+	recFrame:SetText(REWARD_ITEMS_ONLY);
+	recFrame:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 3, -5);
+	recFrame:Show();
+	QuestFrame_SetAsLastShown(recFrame, _G[questLogPfx.."SpacerFrame"]);
+	xpText:SetPoint("LEFT", recFrame, "RIGHT", 5, 0);
 	return true;
 end
 
---- Try to anchor the XP FontString to a fitting position in quest details
--- @return true if successful, false if not
-local function AddXpText()
-	if AddAfterMoney() or AddAfterRecText() or AddAfterSpellOrChoice() or AddRewardSection() then 
-		return true;
-	end
-	return false;
-end
-
-local OrigQuestLog_UpdateQuestDetails = QuestLog_UpdateQuestDetails
-function QuestLog_UpdateQuestDetails(doNotScroll)
-	OrigQuestLog_UpdateQuestDetails(doNotScroll);
-	
+--- Insert XP info if applicable
+local function QuestDetailUpdate()
 	if UnitLevel("player") < 60 then
 		local _, _, _, _, _, _, _, questID = GetQuestLogTitle(GetQuestLogSelection());
-		if _addon.xpdata[questID] and AddXpText() then
-			xpText:SetText(_addon.xpdata[questID] .. " XP");
-			xpText:Show();
-			return;
+		if _addon.xpdata[questID] then
+			xpText:ClearAllPoints();
+			if AddAfterMoney() or AddAfterRecText() or AddAfterSpellOrChoice() or AddRewardSection() then 
+				xpText:SetText(_addon.xpdata[questID] .. " XP");
+				xpText:Show();
+				return;
+			end
 		end
 	end
 
 	xpText:Hide();
 end
+
+
+-- Hook QuestLog Extended
+if QuestLogEx ~= nil then
+	questLogPfx = "QuestLogEx";
+	local OrigQuestLog_UpdateQuestDetails = QuestLogEx.QuestLog_UpdateQuestDetails;
+	xpText = QuestLogExDetailScrollChildFrame:CreateFontString("QXPIText", "BACKGROUND", "QuestFont");
+
+	function QuestLogEx:QuestLog_UpdateQuestDetails(doNotScroll)
+		OrigQuestLog_UpdateQuestDetails(doNotScroll);
+		QuestDetailUpdate();
+	end
+
+-- Hook vanilla questlog
+else
+	questLogPfx = "QuestLog";
+	local OrigQuestLog_UpdateQuestDetails = QuestLog_UpdateQuestDetails;
+	xpText = QuestLogDetailScrollChildFrame:CreateFontString("QXPIText", "BACKGROUND", "QuestFont");
+
+	function QuestLog_UpdateQuestDetails(doNotScroll)
+		OrigQuestLog_UpdateQuestDetails(doNotScroll);
+		QuestDetailUpdate();
+	end
+end
+
+xpText:SetTextColor(0.15,0.15,0.15,1);
+xpText:SetFont("Fonts\\FRIZQT__.TTF", 11);
